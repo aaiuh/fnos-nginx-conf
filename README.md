@@ -6,9 +6,54 @@
 
 ---
 
-## 本分支：加了 WebSocket 支持（1.1.1）
+## 来源与改动
 
-本仓库基于 [kuilei0926/FnNginxConf](https://github.com/kuilei0926/FnNginxConf) v1.1.0 的源码，只改了一处：**生成的每条 `location` 都带 WebSocket 升级头**。
+本仓库是 **[kuilei0926/FnNginxConf](https://github.com/kuilei0926/FnNginxConf) v1.1.0 源码的修改版（fork）**，不是原创项目。
+
+| 项 | 内容 |
+|---|---|
+| 原作者 | [kuilei0926](https://github.com/kuilei0926) |
+| 上游版本 | v1.1.0（tag `v1.1.0`） |
+| 许可证 | 上游仓库未附 LICENSE 文件 |
+| 本仓库改动 | 仅下表所列两处，其余逻辑、界面、打包流程与上游一致 |
+
+> **致原作者**：本仓库为个人自用修改版，所有改动均可无条件回馈上游。若你不希望此修改版公开分发，请提 issue 告知，我会立即转为私有或删除，不会保留副本。
+
+### 改动清单
+
+| 版本 | 类型 | 改动 | 涉及文件 |
+|---|---|---|---|
+| 1.1.2 | 修复 | 版本号读取路径算错，界面永远显示 `v1.0.0` | `app/server/server.py`、`app/server/web/index.html`、`app/server/web/app.js` |
+| 1.1.1 | 功能 | 生成的每条 `location` 增加 WebSocket 升级头 | `app/server/nginx_cfg.py` → `location_block()` |
+
+---
+
+## 1.1.2 — 版本号显示修复
+
+上游 `server.py` 用「`__file__` 上两级 + `manifest`」拼路径：
+
+```python
+os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "manifest")
+```
+
+这在源码树里成立，但装到飞牛后布局变了：
+
+```
+/vol1/@appcenter/FnNginxConf/server/server.py   ← __file__
+                 ↑ 上两级只到这里             ← 没有 manifest
+/var/apps/FnNginxConf/manifest                  ← manifest 真实位置（target 软链的兄弟）
+```
+
+读不到文件 → `except` 吞异常 → 回退硬编码 `"1.0.0"`。于是包升到 1.1.1，界面还显示 v1.0.0。
+
+改为按「源码树根 → 应用根 → `/var/apps/<app>/manifest`」依次探测，全部失败回退 `0.0.0`，
+不再冒充某个真实版本号。前端占位符同步从 `v1.0.0` 改为 `v—`，由接口返回值填充。
+
+---
+
+## 1.1.1 — WebSocket 支持
+
+只改一处：**生成的每条 `location` 都带 WebSocket 升级头**。
 
 ```nginx
 proxy_http_version 1.1;
