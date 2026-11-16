@@ -87,7 +87,7 @@ function renderPills(st) {
     applied.textContent = "有未应用的更改";
     applied.className = "pill pill-warn";
   }
-  $("#versionBadge").textContent = "v" + (st.version || "1.0.0");
+  $("#versionBadge").textContent = st.version ? "v" + st.version : "v—";
 }
 
 function renderAdminUI() {
