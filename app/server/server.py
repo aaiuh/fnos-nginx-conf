@@ -40,18 +40,38 @@ MAX_RULES = 200   # 规则数量上限，防止 conf 文件无界增长
 PREVIEW_MODE = False   # 本地 TCP 预览时视为管理员
 _applying = False      # 后台是否正在应用配置（防并发 + 前端 busy 状态）
 
-try:
-    _manifest_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "manifest")
-    with open(_manifest_path, "r", encoding="utf-8") as _f:
-        for _line in _f:
-            if _line.strip().lower().startswith("version"):
-                VERSION = _line.split("=", 1)[1].strip().strip("\"'") or "1.0.0"
-                break
-        else:
-            VERSION = "1.0.0"
-except Exception:
-    VERSION = "1.0.0"
+def _detect_version() -> str:
+    """定位并读取 manifest 中的 version。
+
+    manifest 与 server.py 不在同一个层级：
+      · 源码树    fnnginxconf-src/app/server/server.py → manifest 在仓库根
+      · 飞牛安装  /vol1/@appcenter/<app>/server/server.py → manifest 在
+                  /var/apps/<app>/manifest（target 软链的兄弟节点）
+    server.py 往上两级只到 @appcenter/<app>，那里没有 manifest，
+    因此按从近到远依次探测，全部失败才回退，避免静默显示错版本。
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    app_root = os.path.dirname(here)
+    candidates = [
+        os.path.join(os.path.dirname(app_root), "manifest"),      # 源码树：仓库根
+        os.path.join(app_root, "manifest"),                       # 兜底：应用根
+        "/var/apps/%s/manifest" % os.path.basename(app_root),     # 飞牛标准安装位置
+    ]
+    for path in candidates:
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                for line in fh:
+                    key, _, value = line.partition("=")
+                    if key.strip().lower() == "version":
+                        value = value.strip().strip("\"'")
+                        if value:
+                            return value
+        except OSError:
+            continue
+    return "0.0.0"
+
+
+VERSION = _detect_version()
 
 # ---------------------------------------------------------------------------
 # 日志
